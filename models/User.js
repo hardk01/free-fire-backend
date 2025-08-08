@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   freeFireUsername: { type: String, required: true },
   wallet: { type: Number, default: 0 },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
   isAdmin: { type: Boolean, default: false }
 }, { timestamps: true });
 

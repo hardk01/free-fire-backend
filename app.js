@@ -8,7 +8,10 @@ const connectDB = require('./config/db');
 const bookingRoutes = require('./routes/booking'); 
 const adminRoutes = require('./routes/admin');
 const slotRoutes = require('./routes/slot');
+const bannerRoutes = require('./routes/banner');
+const winnerRoutes = require('./routes/winner');
 const { startCronJobs } = require('./services/cronJobs');
+const { getSlotsBySlotType } = require('./controllers/slotController');
 
 const app = express();
 
@@ -30,6 +33,11 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/bookings',bookingRoutes );
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin', slotRoutes);
+app.use('/api/banner', bannerRoutes);
+app.use('/api/winners', winnerRoutes);
+app.use('/api/v1', slotRoutes); 
+// app.use('/slots/slottype/:slotType', getSlotsBySlotType);
+app.use('/uploads', express.static('uploads'));
 
 // Error handler
 app.use((err, req, res, next) => {

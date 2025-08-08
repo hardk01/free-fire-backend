@@ -3,6 +3,7 @@ const Transaction = require('../models/Transaction');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const axios = require('axios');
+const { log } = require('console');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -202,32 +203,41 @@ exports.verify = async (req, res) => {
 };
 
 exports.getBalance = async (req, res) => {
-  try {
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
 
-    const user = await User.findById(req.user.userId).select('wallet');
+  try {
+    const { id } = req.query;
+    if (!id) {
+      return res.status(401).json({
+        status: false,
+        message: 'Please provide a user ID'
+        });
+      }
+
+
+    const user = await User.findById(id).select('wallet');
     if (!user) {
       return res.status(404).json({ 
-        success: false,
-        error: 'User not found' 
+        status: false,
+        message: 'User not found' 
       });
     }
 
     res.json({ 
-      success: true,
-      wallet: user.wallet 
+      status: true,
+      balance: user.wallet
     });
   } catch (err) {
     console.error('Get Balance Error:', err);
+    if (err.kind === 'ObjectId') {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid user ID format'
+      });
+    }
     res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch wallet balance',
-      details: err.message 
+      status: false,
+      message: 'Failed to fetch wallet balance',
+      error: err.message 
     });
   }
 };
@@ -817,7 +827,7 @@ exports.getPendingWithdrawals = async (req, res) => {
 exports.approveWithdrawal = async (req, res) => {
   try {
     const { transactionId } = req.params;
-    const adminId = req.admin._id; // Admin ID from admin auth middleware
+    const adminId = req.user.adminId; // Admin ID from admin auth middleware
 
     const transaction = await Transaction.findOne({
       transactionId: transactionId,
@@ -884,7 +894,7 @@ exports.rejectWithdrawal = async (req, res) => {
   try {
     const { transactionId } = req.params;
     const { rejectionReason } = req.body;
-    const adminId = req.admin._id; // Admin ID from admin auth middleware
+    const adminId = req.user.adminId; // Admin ID from admin auth middleware
 
     if (!rejectionReason) {
       return res.status(400).json({

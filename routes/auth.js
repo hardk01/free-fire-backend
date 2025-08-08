@@ -4,11 +4,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const authController = require('../controllers/authController');
-const adminAuth = require('../middleware/auth');
+const authentication = require('../middleware/adminAuth');
 
 // ✅ Register Route
 router.post('/register', async (req, res) => {
-  const { name, email, phone, password, freeFireUsername } = req.body;
+  const { name, email, phone, password, freeFireUsername
+   } = req.body;
 
   try {
     if (!name || !email || !phone || !password || !freeFireUsername) {
@@ -31,7 +32,7 @@ router.post('/register', async (req, res) => {
       email,
       phone,
       password, // plain text – will be hashed in pre('save')
-      freeFireUsername
+      freeFireUsername,
     });
 
     await user.save();
@@ -39,14 +40,14 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       status: true,
       message: 'User registered successfully',
-      user: {
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        wallet: user.wallet,
-        freeFireUsername: user.freeFireUsername,
-        isAdmin: user.isAdmin
-      }
+      // user: {
+      //   name: user.name,
+      //   email: user.email,
+      //   phone: user.phone,
+      //   wallet: user.wallet,
+      //   freeFireUsername: user.freeFireUsername,
+      //   isAdmin: user.isAdmin
+      // }
     });
   } catch (err) {
     console.error(err);
@@ -83,19 +84,17 @@ router.post('/login', async (req, res) => {
       });
 
     // ✅ Create JWT token with userId
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user._id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET, {
     });
 
     res.json({
       status: true,
       message: 'Login successful',
       token,
-      user: {
-        name: user.name,
-        email: user.email,
-        wallet: user.wallet,
-        isAdmin: user.isAdmin
-      }
+      // user: {
+      //   name: user.name,
+      //   token
+      // }
     });
   } catch (error) {
     console.error(error);
@@ -106,7 +105,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/users', adminAuth, authController.getAllUsers);
+router.get('/users', authentication, authentication.authorizationRole('admin'), authController.getAllUsers);
+
+router.get('/user', authentication, authController.getUserByQuery);
 
 // ✅ OTP Handling
 router.post('/verify', authController.verifyOTP);

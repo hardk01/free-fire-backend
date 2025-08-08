@@ -6,19 +6,6 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// exports.register = async (req, res) => {
-//   try {
-//     const { fullName, email, mobile, gamingName, gamingUID, password } = req.body;
-//     let user = await User.findOne({ email });
-//     if (user) return res.status(400).json({ msg: 'User already exists' });
-//     user = new User({ fullName, email, mobile, gamingName, gamingUID, password, isVerified: true });
-//     await user.save();
-//     res.status(201).json({ msg: 'Registered. You can now log in.' });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -91,5 +78,86 @@ exports.getAllUsers = async (req, res) => {
   } catch (err) {
     console.error('Error fetching users:', err);
     res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: 'User not found'
+      });
+    }
+    res.json({
+      status: true,
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        wallet: user.wallet,
+        freeFireUsername: user.freeFireUsername,
+        isAdmin: user.isAdmin
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid user ID format'
+      });
+    }
+    res.status(500).json({
+      status: false,
+      message: 'Server error occurred while fetching user.'
+    });
+  }
+};
+
+// Handler for query parameter-based user lookup
+exports.getUserByQuery = async (req, res) => {
+  try {
+    const { id } = req.query;
+    
+    if (!id) {
+      return res.status(400).json({
+        status: false,
+        message: 'User ID is required as a query parameter'
+      });
+    }
+    
+    const user = await User.findById(id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: 'User not found'
+      });
+    }
+    
+    res.json({
+      status: true,
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        wallet: user.wallet,
+        freeFireUsername: user.freeFireUsername,
+        isAdmin: user.isAdmin
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(400).json({
+        status: false,
+        message: 'Invalid user ID format'
+      });
+    }
+    res.status(500).json({
+      status: false,
+      message: 'Server error occurred while fetching user.'
+    });
   }
 };

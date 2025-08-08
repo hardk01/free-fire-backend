@@ -2,6 +2,30 @@ const Booking = require('../models/Booking');
 const User = require('../models/User');
 const Slot = require('../models/Slot');
 
+// Helper function to normalize slot type to match enum values
+const normalizeSlotType = (slotType) => {
+  if (!slotType) return 'solo';
+  
+  const type = slotType.toLowerCase().trim();
+  
+  // Map various formats to standardized enum values
+  const typeMap = {
+    'solo': 'solo',
+    'duo': 'duo', 
+    'squad': 'squad',
+    'clash squad': 'clash squad',
+    'lone wolf': 'lone wolf',
+    'survival': 'survival',
+    'free matches': 'free matches',
+    // Handle variations that shouldn't be slot types but might appear
+    'full map': 'squad', // Default to squad for full map
+    'fullmap': 'squad',
+    'full-map': 'squad'
+  };
+  
+  return typeMap[type] || type;
+};
+
 // Create booking with position selection
 exports.createBooking = async (req, res) => {
   try {
@@ -11,13 +35,14 @@ exports.createBooking = async (req, res) => {
       playerNames, 
       totalAmount, 
       slotType, 
-      entryFee 
+      entryFee,
+      userId // New userId field
     } = req.body;
 
     // Validate required fields
-    if (!slotId || !selectedPositions || !playerNames || !totalAmount) {
+    if (!slotId || !selectedPositions || !playerNames || totalAmount === undefined || totalAmount === null || !userId) {
       return res.status(400).json({ 
-        msg: 'Missing required fields: slotId, selectedPositions, playerNames, totalAmount' 
+        msg: 'Missing required fields: slotId, selectedPositions, playerNames, totalAmount, userId' 
       });
     }
 
@@ -33,8 +58,8 @@ exports.createBooking = async (req, res) => {
       return res.status(404).json({ msg: 'Slot not found' });
     }
 
-    // Validate slot type
-    if (slot.slotType.toLowerCase() !== slotType.toLowerCase()) {
+    // Validate slot type - normalize both for comparison
+    if (normalizeSlotType(slot.slotType) !== normalizeSlotType(slotType)) {
       return res.status(400).json({ msg: 'Slot type mismatch' });
     }
 
@@ -45,7 +70,10 @@ exports.createBooking = async (req, res) => {
 
     // Validate total amount calculation
     const positionsCount = Object.values(selectedPositions).reduce((total, positions) => total + positions.length, 0);
-    const expectedAmount = slot.entryFee * positionsCount;
+    
+    // For Free Matches, entry fee should be 0
+    const isFreeMachatch = slotType.toLowerCase() === 'free matches';
+    const expectedAmount = isFreeMachatch ? 0 : (slot.entryFee * positionsCount);
     
     if (Math.abs(totalAmount - expectedAmount) > 0.01) {
       return res.status(400).json({ 
@@ -53,8 +81,8 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Check wallet balance
-    if (user.wallet < totalAmount) {
+    // Check wallet balance (skip for free matches)
+    if (!isFreeMachatch && user.wallet < totalAmount) {
       return res.status(400).json({ 
         msg: `Insufficient wallet balance. Required: ${totalAmount}, Available: ${user.wallet}` 
       });
@@ -77,9 +105,11 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Deduct amount from wallet
-    user.wallet -= totalAmount;
-    await user.save();
+    // Deduct amount from wallet (skip for free matches)
+    if (!isFreeMachatch && totalAmount > 0) {
+      user.wallet -= totalAmount;
+      await user.save();
+    }
 
     // Decrease remaining slot count by number of positions booked
     slot.remainingBookings -= 1;
@@ -88,8 +118,9 @@ exports.createBooking = async (req, res) => {
     // Create booking
     const booking = new Booking({
       user: user._id,
+      userId: userId, // Add the userId field
       slot: slot._id,
-      slotType: slot.slotType.toLowerCase(),
+      slotType: normalizeSlotType(slot.slotType),
       selectedPositions: new Map(Object.entries(selectedPositions)),
       playerNames: new Map(Object.entries(playerNames)),
       totalAmount,

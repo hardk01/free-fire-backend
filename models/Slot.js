@@ -5,8 +5,12 @@ const slotSchema = new mongoose.Schema({
   // Basic slot information
   slotType: {
     type: String,
-    enum: ['Solo', 'Duo', 'Squad', 'Clash Squad', 'Lone Wolf', 'Survival', 'Free Matches'],
     required: true
+  },
+  matchIndex: {
+    type: Number,
+    unique: true,
+    sparse: true // Allow null values but enforce uniqueness when value exists
   },
   entryFee: {
     type: Number,
@@ -37,7 +41,6 @@ const slotSchema = new mongoose.Schema({
     required: true
   },
   
-  // Enhanced match information
   matchTitle: {
     type: String,
     default: ''
@@ -53,8 +56,7 @@ const slotSchema = new mongoose.Schema({
   },
   gameMode: {
     type: String,
-    enum: ['Classic', 'Ranked', 'Custom'],
-    default: 'Classic'
+    required: true
   },
   tournamentName: {
     type: String,
@@ -93,6 +95,10 @@ const slotSchema = new mongoose.Schema({
     default: ''
   },
   banList: {
+    type: String,
+    default: ''
+  },
+  bannerImage: {
     type: String,
     default: ''
   },
@@ -195,6 +201,22 @@ const slotSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Pre-save middleware to auto-increment matchIndex
+slotSchema.pre('save', async function(next) {
+  if (this.isNew && !this.matchIndex) {
+    try {
+      // Find the highest matchIndex and increment by 1
+      const lastSlot = await mongoose.model('Slot').findOne({}).sort({ matchIndex: -1 }).exec();
+      this.matchIndex = lastSlot && lastSlot.matchIndex ? lastSlot.matchIndex + 1 : 1;
+      console.log('Auto-assigned matchIndex:', this.matchIndex);
+    } catch (error) {
+      console.error('Error auto-incrementing matchIndex:', error);
+      return next(error);
+    }
+  }
+  next();
 });
 
 module.exports = mongoose.model('Slot', slotSchema);
