@@ -1,10 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { createBooking, getBookings, getMyBookingsWithUser, getSlotBookings } = require('../controllers/bookingController');
+const { createBooking, getMyBookingsWithUser, getSlotBookings, updateWinnerStats, getWinnersBySlot } = require('../controllers/bookingController');
 const authentication = require('../middleware/adminAuth');
-
-// Route to get all bookings of the logged-in user
-router.get('/', authentication, getBookings);
 
 // New route to create booking with position selection
 router.post('/create', authentication, createBooking);
@@ -14,5 +11,11 @@ router.get('/slot/:slotId', getSlotBookings);
 
 // Route to get user bookings with user details
 router.get('/id', authentication, getMyBookingsWithUser);
+
+// Route to update winner statistics
+router.put('/winner/:bookingId', authentication, updateWinnerStats);
+
+// Route to get winners by slot
+router.get('/winners/:slotId', getWinnersBySlot);
 
 module.exports = router;

@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
 const walletRoutes = require('./routes/wallet');
 const connectDB = require('./config/db');
@@ -9,9 +8,7 @@ const bookingRoutes = require('./routes/booking');
 const adminRoutes = require('./routes/admin');
 const slotRoutes = require('./routes/slot');
 const bannerRoutes = require('./routes/banner');
-const winnerRoutes = require('./routes/winner');
 const { startCronJobs } = require('./services/cronJobs');
-const { getSlotsBySlotType } = require('./controllers/slotController');
 
 const app = express();
 
@@ -34,7 +31,6 @@ app.use('/api/bookings',bookingRoutes );
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin', slotRoutes);
 app.use('/api/banner', bannerRoutes);
-app.use('/api/winners', winnerRoutes);
 app.use('/api/v1', slotRoutes); 
 // app.use('/slots/slottype/:slotType', getSlotsBySlotType);
 app.use('/uploads', express.static('uploads'));

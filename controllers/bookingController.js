@@ -169,53 +169,53 @@ exports.createBooking = async (req, res) => {
 };
 
 // Get user's bookings
-exports.getBookings = async (req, res) => {
-  try {
-    const bookings = await Booking.find({ user: req.user.userId })
-      .populate(
-        "slot",
-        "slotType matchTime totalWinningPrice perKill matchTitle tournamentName mapName specialRules maxPlayers streamLink"
-      )
-      .sort({ createdAt: -1 });
+// exports.getBookings = async (req, res) => {
+//   try {
+//     const bookings = await Booking.find({ user: req.user.userId })
+//       .populate(
+//         "slot",
+//         "slotType matchTime totalWinningPrice perKill matchTitle tournamentName mapName specialRules maxPlayers streamLink"
+//       )
+//       .sort({ createdAt: -1 });
 
-    // Convert Map objects to regular objects for JSON response
-    const formattedBookings = bookings.map((booking) => {
-      const bookingObj = booking.toObject();
+//     // Convert Map objects to regular objects for JSON response
+//     const formattedBookings = bookings.map((booking) => {
+//       const bookingObj = booking.toObject();
 
-      let selectedPositions = {};
-      let playerNames = {};
+//       let selectedPositions = {};
+//       let playerNames = {};
 
-      // Handle selectedPositions Map safely
-      if (booking.selectedPositions) {
-        if (booking.selectedPositions instanceof Map) {
-          selectedPositions = Object.fromEntries(booking.selectedPositions);
-        } else if (typeof booking.selectedPositions === "object") {
-          selectedPositions = booking.selectedPositions;
-        }
-      }
+//       // Handle selectedPositions Map safely
+//       if (booking.selectedPositions) {
+//         if (booking.selectedPositions instanceof Map) {
+//           selectedPositions = Object.fromEntries(booking.selectedPositions);
+//         } else if (typeof booking.selectedPositions === "object") {
+//           selectedPositions = booking.selectedPositions;
+//         }
+//       }
 
-      // Handle playerNames Map safely
-      if (booking.playerNames) {
-        if (booking.playerNames instanceof Map) {
-          playerNames = Object.fromEntries(booking.playerNames);
-        } else if (typeof booking.playerNames === "object") {
-          playerNames = booking.playerNames;
-        }
-      }
+//       // Handle playerNames Map safely
+//       if (booking.playerNames) {
+//         if (booking.playerNames instanceof Map) {
+//           playerNames = Object.fromEntries(booking.playerNames);
+//         } else if (typeof booking.playerNames === "object") {
+//           playerNames = booking.playerNames;
+//         }
+//       }
 
-      return {
-        ...bookingObj,
-        selectedPositions,
-        playerNames,
-      };
-    });
+//       return {
+//         ...bookingObj,
+//         selectedPositions,
+//         playerNames,
+//       };
+//     });
 
-    res.json({ bookings: formattedBookings });
-  } catch (err) {
-    console.error("Error fetching bookings:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
+//     res.json({ bookings: formattedBookings });
+//   } catch (err) {
+//     console.error("Error fetching bookings:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // Get user bookings with user details
 exports.getMyBookingsWithUser = async (req, res) => {
@@ -381,5 +381,59 @@ exports.getSlotBookings = async (req, res) => {
   } catch (err) {
     console.error("Error fetching slot bookings:", err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateWinnerStats = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { kills, position, winnings } = req.body;
+
+    if (!bookingId) {
+      return res.status(400).json({ msg: "Booking ID is required" });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ msg: "Booking not found" });
+    }
+
+    // Update or create the gameStats field
+    booking.gameStats = {
+      kills: kills ?? booking.gameStats?.kills ?? 0,
+      position: position ?? booking.gameStats?.position ?? 0,
+      winnings: winnings ?? booking.gameStats?.winnings ?? 0,
+    };
+
+    await booking.save();
+
+    res.json({ success: true, msg: "Winner stats updated", booking });
+  } catch (err) {
+    console.error("Error updating winner stats:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+exports.getWinnersBySlot = async (req, res) => {
+  try {
+    const { slotId } = req.params;
+    const bookings = await Booking.find({ slot: slotId })
+      .populate('user', 'name email freeFireUsername')
+      .lean();
+
+    res.json({
+      success: true,
+      winners: bookings.map(b => ({
+        _id: b._id,
+        user: b.user,
+        playerNames: b.playerNames,
+        kills: b.gameStats?.kills || 0,
+        position: b.gameStats?.position || 0,
+        winnings: b.gameStats?.winnings || 0,
+        createdAt: b.createdAt,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, msg: "Failed to fetch winners", error: err.message });
   }
 };

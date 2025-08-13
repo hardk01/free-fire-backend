@@ -296,36 +296,12 @@ exports.addTournamentRules = async (req, res) => {
 exports.updateTournamentRules = async (req, res) => {
   try {
     const { slotId } = req.params;
-    const tournamentRulesData = req.body;
-
-    // Get current tournament rules first
-    const currentSlot = await Slot.findById(slotId);
-    if (!currentSlot) {
-      return res.status(404).json({ msg: 'Slot not found' });
-    }
-
-    // Merge existing tournament rules with new data
-    const updatedTournamentRules = {
-      ...currentSlot.tournamentRules?.toObject() || {},
-      ...tournamentRulesData
-    };
-
-    // Use findByIdAndUpdate to avoid full document validation
-    const updatedSlot = await Slot.findByIdAndUpdate(
-      slotId,
-      { $set: { tournamentRules: updatedTournamentRules } },
-      { 
-        new: true, 
-        runValidators: false // Skip validation to avoid issues with existing incomplete slots
-      }
-    );
-
-    // Convert slot to include full URLs before sending response
-    const slotWithFullUrls = convertSlotToFullUrls(updatedSlot);
-    res.json({ msg: 'Tournament rules updated successfully', slot: slotWithFullUrls });
+    const { rules } = req.body;
+    const slot = await Slot.findByIdAndUpdate(slotId, { rules }, { new: true });
+    if (!slot) return res.status(404).json({ msg: "Slot not found" });
+    res.json({ success: true, slot });
   } catch (err) {
-    console.error('Error updating tournament rules:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    res.status(500).json({ msg: "Server error" });
   }
 };
 
